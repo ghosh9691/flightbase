@@ -1,0 +1,85 @@
+@using Microsoft.AspNetCore.Components.Forms
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">ICAO Airline Code</label>
+        <InputText class="form-control" @bind-Value="Flight.IcaoAirlineCode" placeholder="e.g. BAW" />
+        <ValidationMessage For="() => Flight.IcaoAirlineCode" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">IATA Airline Code</label>
+        <InputText class="form-control" @bind-Value="Flight.IataAirlineCode" placeholder="e.g. BA" />
+        <ValidationMessage For="() => Flight.IataAirlineCode" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">ICAO Aircraft Type</label>
+        <InputText class="form-control" @bind-Value="Flight.IcaoAircraftType" placeholder="e.g. B738" />
+        <ValidationMessage For="() => Flight.IcaoAircraftType" />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-4">
+        <label class="form-label">Flight Number</label>
+        <InputText class="form-control" @bind-Value="Flight.FlightNumber" placeholder="e.g. 117" />
+        <ValidationMessage For="() => Flight.FlightNumber" />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-3">
+        <label class="form-label">Origin ICAO</label>
+        <InputText class="form-control" @bind-Value="Flight.OriginIcao" placeholder="e.g. EGLL" />
+        <ValidationMessage For="() => Flight.OriginIcao" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Origin IATA</label>
+        <InputText class="form-control" @bind-Value="Flight.OriginIata" placeholder="e.g. LHR" />
+        <ValidationMessage For="() => Flight.OriginIata" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Destination ICAO</label>
+        <InputText class="form-control" @bind-Value="Flight.DestinationIcao" placeholder="e.g. KJFK" />
+        <ValidationMessage For="() => Flight.DestinationIcao" />
+    </div>
+    <div class="col-md-3">
+        <label class="form-label">Destination IATA</label>
+        <InputText class="form-control" @bind-Value="Flight.DestinationIata" placeholder="e.g. JFK" />
+        <ValidationMessage For="() => Flight.DestinationIata" />
+    </div>
+</div>
+
+<div class="row mb-3">
+    <div class="col-md-2">
+        <label class="form-label">Duration Hours</label>
+        <InputNumber class="form-control" @bind-Value="DurationHours" />
+    </div>
+    <div class="col-md-2">
+        <label class="form-label">Duration Minutes</label>
+        <InputNumber class="form-control" @bind-Value="DurationMinutes" />
+    </div>
+    <div class="col-md-4">
+        <label class="form-label">Currently Operated</label>
+        <div class="form-check mt-2">
+            <InputCheckbox class="form-check-input" @bind-Value="Flight.IsCurrentlyOperated" />
+            <label class="form-check-label">Yes</label>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired]
+    public Flight Flight { get; set; } = default!;
+
+    private int DurationHours
+    {
+        get => (int)Flight.Duration.TotalHours;
+        set => Flight.Duration = new TimeSpan(value, DurationMinutes, 0);
+    }
+
+    private int DurationMinutes
+    {
+        get => Flight.Duration.Minutes;
+        set => Flight.Duration = new TimeSpan(DurationHours, value, 0);
+    }
+}

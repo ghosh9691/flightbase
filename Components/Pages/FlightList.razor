@@ -1,0 +1,211 @@
+@page "/flights"
+@rendermode InteractiveServer
+@using FlightBase.Data
+@using Microsoft.EntityFrameworkCore
+@inject IDbContextFactory<FlightBaseContext> DbFactory
+@inject NavigationManager Navigation
+
+<PageTitle>Flights</PageTitle>
+
+<h1>Flights</h1>
+
+<div class="mb-3">
+    <a href="flights/add" class="btn btn-success">Add Flight</a>
+</div>
+
+@if (flights is null)
+{
+    <p>Loading...</p>
+}
+else if (!flights.Any())
+{
+    <p class="text-muted">No flights yet. Add one to get started!</p>
+}
+else
+{
+    <table class="table table-striped table-hover">
+        <thead>
+            <tr>
+                <th role="button" @onclick='() => Sort("IcaoAirlineCode")'>
+                    Airline @SortIndicator("IcaoAirlineCode")
+                </th>
+                <th role="button" @onclick='() => Sort("FlightNumber")'>
+                    Flight # @SortIndicator("FlightNumber")
+                </th>
+                <th role="button" @onclick='() => Sort("IcaoAircraftType")'>
+                    Aircraft @SortIndicator("IcaoAircraftType")
+                </th>
+                <th role="button" @onclick='() => Sort("OriginIcao")'>
+                    Origin @SortIndicator("OriginIcao")
+                </th>
+                <th role="button" @onclick='() => Sort("DestinationIcao")'>
+                    Destination @SortIndicator("DestinationIcao")
+                </th>
+                <th>Duration</th>
+                <th role="button" @onclick='() => Sort("IsCurrentlyOperated")'>
+                    Operated @SortIndicator("IsCurrentlyOperated")
+                </th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var f in flights)
+            {
+                <tr>
+                    <td>@f.IcaoAirlineCode / @f.IataAirlineCode</td>
+                    <td>@f.FlightNumber</td>
+                    <td>@f.IcaoAircraftType</td>
+                    <td>@f.OriginIcao / @f.OriginIata</td>
+                    <td>@f.DestinationIcao / @f.DestinationIata</td>
+                    <td>@($"{(int)f.Duration.TotalHours}h {f.Duration.Minutes}m")</td>
+                    <td>@(f.IsCurrentlyOperated ? "Yes" : "No")</td>
+                    <td>
+                        <a href="@($"flights/{f.Id}")" class="btn btn-sm btn-outline-primary">View</a>
+                        <a href="@($"flights/{f.Id}/edit")" class="btn btn-sm btn-outline-secondary">Edit</a>
+                        <button class="btn btn-sm btn-outline-danger" @onclick="() => ConfirmDelete(f)">Delete</button>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <nav>
+        <ul class="pagination">
+            <li class="page-item @(currentPage <= 1 ? "disabled" : "")">
+                <button class="page-link" @onclick="() => GoToPage(currentPage - 1)">Previous</button>
+            </li>
+            @for (int i = 1; i <= totalPages; i++)
+            {
+                var pageNum = i;
+                <li class="page-item @(pageNum == currentPage ? "active" : "")">
+                    <button class="page-link" @onclick="() => GoToPage(pageNum)">@pageNum</button>
+                </li>
+            }
+            <li class="page-item @(currentPage >= totalPages ? "disabled" : "")">
+                <button class="page-link" @onclick="() => GoToPage(currentPage + 1)">Next</button>
+            </li>
+        </ul>
+    </nav>
+}
+
+@if (showDeleteModal)
+{
+    <div class="modal d-block" tabindex="-1" style="background-color: rgba(0,0,0,0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Confirm Delete</h5>
+                    <button type="button" class="btn-close" @onclick="CancelDelete"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete flight <strong>@flightToDelete?.IcaoAirlineCode @flightToDelete?.FlightNumber</strong> (@flightToDelete?.OriginIcao &rarr; @flightToDelete?.DestinationIcao)?</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="DeleteFlight">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private List<Flight>? flights;
+    private int currentPage = 1;
+    private int totalPages = 1;
+    private const int PageSize = 10;
+    private string sortColumn = "IcaoAirlineCode";
+    private bool sortAscending = true;
+
+    private bool showDeleteModal;
+    private Flight? flightToDelete;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFlights();
+    }
+
+    private async Task LoadFlights()
+    {
+        using var context = DbFactory.CreateDbContext();
+
+        var totalCount = await context.Flights.CountAsync();
+        totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)PageSize));
+
+        if (currentPage > totalPages) currentPage = totalPages;
+
+        IQueryable<Flight> query = context.Flights;
+
+        query = sortColumn switch
+        {
+            "FlightNumber" => sortAscending ? query.OrderBy(f => f.FlightNumber) : query.OrderByDescending(f => f.FlightNumber),
+            "IcaoAircraftType" => sortAscending ? query.OrderBy(f => f.IcaoAircraftType) : query.OrderByDescending(f => f.IcaoAircraftType),
+            "OriginIcao" => sortAscending ? query.OrderBy(f => f.OriginIcao) : query.OrderByDescending(f => f.OriginIcao),
+            "DestinationIcao" => sortAscending ? query.OrderBy(f => f.DestinationIcao) : query.OrderByDescending(f => f.DestinationIcao),
+            "IsCurrentlyOperated" => sortAscending ? query.OrderBy(f => f.IsCurrentlyOperated) : query.OrderByDescending(f => f.IsCurrentlyOperated),
+            _ => sortAscending ? query.OrderBy(f => f.IcaoAirlineCode) : query.OrderByDescending(f => f.IcaoAirlineCode),
+        };
+
+        flights = await query
+            .Skip((currentPage - 1) * PageSize)
+            .Take(PageSize)
+            .ToListAsync();
+    }
+
+    private async Task Sort(string column)
+    {
+        if (sortColumn == column)
+        {
+            sortAscending = !sortAscending;
+        }
+        else
+        {
+            sortColumn = column;
+            sortAscending = true;
+        }
+        currentPage = 1;
+        await LoadFlights();
+    }
+
+    private string SortIndicator(string column)
+    {
+        if (sortColumn != column) return "";
+        return sortAscending ? "\u25B2" : "\u25BC";
+    }
+
+    private async Task GoToPage(int page)
+    {
+        if (page < 1 || page > totalPages) return;
+        currentPage = page;
+        await LoadFlights();
+    }
+
+    private void ConfirmDelete(Flight flight)
+    {
+        flightToDelete = flight;
+        showDeleteModal = true;
+    }
+
+    private void CancelDelete()
+    {
+        showDeleteModal = false;
+        flightToDelete = null;
+    }
+
+    private async Task DeleteFlight()
+    {
+        if (flightToDelete is null) return;
+
+        using var context = DbFactory.CreateDbContext();
+        var entity = await context.Flights.FindAsync(flightToDelete.Id);
+        if (entity is not null)
+        {
+            context.Flights.Remove(entity);
+            await context.SaveChangesAsync();
+        }
+
+        showDeleteModal = false;
+        flightToDelete = null;
+        await LoadFlights();
+    }
+}
