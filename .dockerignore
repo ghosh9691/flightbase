@@ -4,6 +4,6 @@ obj
 *.db
 *.db-shm
 *.db-wal
-data/
+data/flightbase.db*
 .github/
 .config/
